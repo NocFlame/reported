@@ -120,6 +120,19 @@
 				return {'img' : img, 'description' : img_desc};
 			}
 
+			function markdown_codeblock(text) {
+				let inner_text = text[0].substr(3, text[0].length-6);
+				// Remove the initial row break if there is one:
+				if(inner_text.substr(0,1) == '\n')
+					inner_text = inner_text.substr(1,inner_text.length);
+				else if (inner_text.substr(0,4) == '<br>')
+					inner_text = inner_text.substr(4,inner_text.length);
+
+				let block = document.createElement('pre');
+				block.innerHTML = inner_text;
+				return block
+			}
+
 			function toc(toc_str, paragraph) {
 				let toc_html_obj = document.createElement('div');
 				toc_html_obj.id = 'table_of_contents';
@@ -136,17 +149,8 @@
 			}
 
 			function bold(bold_str) {
-				console.log('Got bold str:', bold_str)
 				let bold_obj = document.createElement('b');
 				bold_obj.innerHTML = bold_str[0].substr(2, bold_str[0].length-4);
-				
-				console.log('Converted to:', bold_obj.outerHTML)
-				/*
-				paragraph.appendChild(bold);
-				// Restart the text-section, since we're breaking in the bold
-				span = document.createElement('span');
-				paragraph.appendChild(span);
-				*/
 				return bold_obj.outerHTML
 			}
 
@@ -166,17 +170,26 @@
 				return strike_obj.outerHTML
 			}
 
+			function code(code_str, paragraph) {
+				let code_obj = document.createElement('code');
+				code_obj.innerHTML = code_str[0].substr(1, code_str[0].length-2)
+				return code_obj.outerHTML
+			}
+
 			function check_for_markdown_syntax(markdown_row, header, paragraph, paragraph_text, span) {
 				let toc_regex = /:toc{[0-9,]+}/g
 				let img_regex = /!\[.*\]\(.*\)/g
 				let ital_regex = /(\*|\_)(.)+(\*|\_)/g
 				let bold_regex = /[\*]{2}.*?[\*]{2}/g
 				let stri_regex = /\~\~(.)+\~\~/g
+			//	let codeblock_regex = /[\`]{3}([\n\r].*)+[\`]{3}/g // `x3 (new-line*)-repeat until `x3
+				let codeblock_regex = /[\`]{3}.*[\`]{3}/g
+				let code_regex = /`[\s\S]*?`(?:(?![\`]{1}))/g // Trying to avoide triggering on ``` which, this sort of don't.
 
-				
+
 				// Combined emphasis with **asterisks and _underscores_**.
 				//let comb_emphasis_with_bold_str = markdown_row.match(/((\*\*)(.)+(\_\*\*)|((\_)(.)+(\*\*\_)))/g);
-				
+
 
 				// image on the current row
 				let img_str = markdown_row.match(img_regex);
@@ -220,9 +233,21 @@
 					let formatted = strikethrough(strikethrough_str)
 					markdown_row = markdown_row.replace(strikethrough_str, formatted);
 				}
-				
-				//if(markdown_row.length)
+				// Code, uses backticks, `code block`
+				let code_str = markdown_row.match(code_regex);
+				if (code_str && code_str[0] !== "```") {
+					let formatted = code(code_str);
+					markdown_row = markdown_row.replace(code_str, formatted);
+				}
+
 				span.innerHTML = span.innerHTML + format_content(markdown_row) + '<br>';
+
+				let block_str = span.innerHTML.match(codeblock_regex);
+				if(block_str) {
+					let code_data = markdown_codeblock(block_str);
+					span.innerHTML = span.innerHTML.replace(block_str, code_data.outerHTML); // Since we're handling it below in the same code block.
+				}
+
 			}
 
 			function parse(markdown_raw) {
@@ -340,6 +365,18 @@ Default **_administrative_ accounts** were enabled.
 
 ### Description
 During the **pentest**, a lot of weak passwords were found.
+To view the passwords we found use below command.
+Here's a inline `cat /etc/shadow` example.
+
+It's also possible to write larger code blocks:
+
+```
+import antigravity
+
+antigravity.init()
+antigravity.activate(myself)
+```
+And the document continues.
 
 ### Proposed Solution
 Use 2FA ~~everywhere~~.
